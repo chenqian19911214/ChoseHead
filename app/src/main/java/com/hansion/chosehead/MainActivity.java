@@ -1,14 +1,18 @@
 package com.hansion.chosehead;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.StatFs;
+import android.os.storage.StorageManager;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -17,6 +21,10 @@ import android.widget.ImageView;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -52,7 +60,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.mGoCamera_btn:
-                getPicFromCamera();
+                //getPicFromCamera();
+                isSd();
                 break;
             case R.id.mGoAlbm_btn:
                 getPicFromAlbm();
@@ -61,8 +70,63 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
         }
     }
+/**
+ *  mounted
+ *  /storage/emulated/0
+ *  /data/data/com.hansion.chosehead/cache
+ * */
 
 
+private List sdpath(){
+
+    List pathsList = new ArrayList<String>();
+    StorageManager storageManager = (StorageManager) getSystemService(Context.STORAGE_SERVICE);
+    try {
+        Method method = StorageManager.class.getDeclaredMethod("getVolumePaths");
+        method.setAccessible(true);
+        Object result = method.invoke(storageManager);
+        if (result != null && result instanceof String[]) {
+            String[] pathes = (String[]) result;
+            StatFs statFs;
+            for (String path : pathes) {
+                if (!TextUtils.isEmpty(path) && new File(path).exists()) {
+                    statFs = new StatFs(path);
+                    if (statFs.getBlockCount() * statFs.getBlockSize() != 0) {
+                        pathsList.add(path);
+                    }
+                }
+            }
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+        File externalFolder = Environment.getExternalStorageDirectory();
+        if (externalFolder != null) {
+            pathsList.add(externalFolder.getAbsolutePath());
+        }
+    }
+
+    pathsList.toArray(new String[pathsList.size()]);
+       Log.i("",""+pathsList.toArray(new String[pathsList.size()]));
+
+
+   return pathsList;
+
+}
+    private void isSd(){
+        String issdke = Environment.getExternalStorageState();
+
+        String sdpath = Environment.getExternalStorageDirectory().getPath();
+        //Environment.getExternal
+        String datapath = getBaseContext().getCacheDir().getPath();
+
+        List list= sdpath();
+
+        for (Object dss: list) {
+            Log.i("","dss:"+dss);
+        }
+        Log.i("","issdke:"+issdke+"  sdpath:"+sdpath+"  datapath:"+datapath+"  sd:");
+
+}
     /**
      * 从相机获取图片
      */
@@ -95,8 +159,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     /**
      * 裁剪图片
+     *
+     * file:///storage/emulated/0/1513828126437.jpg
      */
     private void cropPhoto(Uri uri) {
+        Log.i("","uri");
         Intent intent = new Intent("com.android.camera.action.CROP");
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
@@ -122,6 +189,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         Uri contentUri = FileProvider.getUriForFile(MainActivity.this, "com.hansion.chosehead", tempFile);
                         cropPhoto(contentUri);
                     } else {
+                        Log.i(" ","+tempFile:"+tempFile);
                         cropPhoto(Uri.fromFile(tempFile));
                     }
                 }
@@ -140,7 +208,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     //设置到ImageView上
                     mHeader_iv.setImageBitmap(image);
                     //也可以进行一些保存、压缩等操作后上传
-//                    String path = saveImage("crop", image);
+                   String path = saveImage("crop", image);
                 }
                 break;
         }
